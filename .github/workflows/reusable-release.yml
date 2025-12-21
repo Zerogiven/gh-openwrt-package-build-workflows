@@ -1,11 +1,17 @@
-name: OpenWrt Release Package
+name: Reusable Release
 
 on:
   workflow_call:
     inputs:
       artifact_pattern:
+        description: 'Pattern to find the artifacts from build jobs (e.g. package-name-*)'
         required: true
         type: string
+      release_file_pattern:
+        description: 'Pattern for files to include in the release (e.g. *.ipk)'
+        required: false
+        type: string
+        default: '*.ipk'
       tag_name:
         required: true
         type: string
@@ -26,18 +32,15 @@ jobs:
           pattern: ${{ inputs.artifact_pattern }}
           path: ${{ github.workspace }}/release-assets/
           merge-multiple: true
+          
+      - name: List Files (Debug)
+        run: ls -R ${{ github.workspace }}/release-assets/
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag_name }}
-          files: ${{ github.workspace }}/release-assets/*.ipk
+          files: ${{ github.workspace }}/release-assets/${{ inputs.release_file_pattern }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-
-      - name: Summary
-        run: |
-          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **Tag**: ${{ inputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Files**: $(ls ${{ github.workspace }}/release-assets/*.ipk | wc -l)" >> $GITHUB_STEP_SUMMARY
