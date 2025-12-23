@@ -115,32 +115,41 @@ jobs:
         run: |
           mkdir -p ${{ github.workspace }}/filtered-assets
           
+          declare -A PROCESSED_FILES
+
           echo "${{ inputs.artifacts_patterns }}" | while read -r pattern; do
             [ -z "$pattern" ] && continue
-            echo "🔍 Searching for: $pattern"
+            echo "🔍 Search for: $pattern"
             
-            FOUND=false
             while read -r src; do
               [ -z "$src" ] && continue
-              FOUND=true
               FILENAME=$(basename "$src")
               
+              [ -n "${PROCESSED_FILES[$src]}" ] && continue
+              PROCESSED_FILES[$src]=1
+
               if [[ "$src" == *"targets/"* ]]; then
                 T_INFO=$(echo "$src" | awk -F'/targets/' '{print $2}' | cut -d'/' -f1,2 | tr '/' '_')
                 NEW_NAME="${FILENAME%.ipk}_${T_INFO}.ipk"
               else
                 NEW_NAME="${FILENAME%.ipk}_${{ inputs.arch }}.ipk"
               fi
-              
-              echo "📦 Copying: $NEW_NAME"
-              cp "$src" "${{ github.workspace }}/filtered-assets/$NEW_NAME"
-            done < <(find ${{ github.workspace }}/artifacts/bin/ -name "$pattern" -type f)
 
-            if [ "$FOUND" = false ]; then
-              echo "❌ Error: Pattern $pattern not found!"
-              exit 1
-            fi
+              if [ -f "${{ github.workspace }}/filtered-assets/$NEW_NAME" ]; then
+                NEW_NAME="${NEW_NAME%.ipk}_$(date +%s%N).ipk"
+              fi
+
+              echo "📦 Found in: $src"
+              echo "➡️ Copy to: $NEW_NAME"
+              cp "$src" "${{ github.workspace }}/filtered-assets/$NEW_NAME"
+              FOUND=true
+            done < <(find ${{ github.workspace }}/artifacts/bin/ -name "$pattern" -type f)
           done
+
+          if [ -z "$(ls -A ${{ github.workspace }}/filtered-assets/)" ]; then
+            echo "❌ Error: No files found!"
+            exit 1
+          fi
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v6
