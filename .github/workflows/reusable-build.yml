@@ -115,18 +115,21 @@ jobs:
         run: |
           mkdir -p ${{ github.workspace }}/filtered-assets
           
-          declare -A PROCESSED_FILES
+          MAIN_TARGET=$(echo "${{ inputs.arch }}" | cut -d'-' -f1)
 
           echo "${{ inputs.artifacts_patterns }}" | while read -r pattern; do
             [ -z "$pattern" ] && continue
-            echo "🔍 Search for: $pattern"
+            echo "🔍 Searching for: $pattern"
             
-            while read -r src; do
-              [ -z "$src" ] && continue
+            find ${{ github.workspace }}/artifacts/bin/ -name "$pattern" -type f | while read -r src; do
               FILENAME=$(basename "$src")
               
-              [ -n "${PROCESSED_FILES[$src]}" ] && continue
-              PROCESSED_FILES[$src]=1
+              if [[ "${{ inputs.arch }}" == *"-"* ]]; then
+                if [[ "$src" == *"targets/"* ]] && [[ "$src" != *"$MAIN_TARGET"* ]]; then
+                  echo "⚠️ Skipping mismatching target path: $src"
+                  continue
+                fi
+              fi
 
               if [[ "$src" == *"targets/"* ]]; then
                 T_INFO=$(echo "$src" | awk -F'/targets/' '{print $2}' | cut -d'/' -f1,2 | tr '/' '_')
@@ -135,21 +138,11 @@ jobs:
                 NEW_NAME="${FILENAME%.ipk}_${{ inputs.arch }}.ipk"
               fi
 
-              if [ -f "${{ github.workspace }}/filtered-assets/$NEW_NAME" ]; then
-                NEW_NAME="${NEW_NAME%.ipk}_$(date +%s%N).ipk"
-              fi
-
-              echo "📦 Found in: $src"
-              echo "➡️ Copy to: $NEW_NAME"
-              cp "$src" "${{ github.workspace }}/filtered-assets/$NEW_NAME"
-              FOUND=true
-            done < <(find ${{ github.workspace }}/artifacts/bin/ -name "$pattern" -type f)
+              echo "📦 Copying: $FILENAME"
+              echo "➡️ Destination: $NEW_NAME"
+              cp -v "$src" "${{ github.workspace }}/filtered-assets/$NEW_NAME"
+            done
           done
-
-          if [ -z "$(ls -A ${{ github.workspace }}/filtered-assets/)" ]; then
-            echo "❌ Error: No files found!"
-            exit 1
-          fi
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v6
