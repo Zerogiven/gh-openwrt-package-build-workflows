@@ -114,14 +114,33 @@ jobs:
         id: collect
         run: |
           mkdir -p ${{ github.workspace }}/filtered-assets
+
           echo "${{ inputs.artifacts_patterns }}" | while read -r pattern; do
             [ -z "$pattern" ] && continue
-            FILES=$(find ${{ github.workspace }}/artifacts/bin/ -name "$pattern" -type f)
-            if [ -z "$FILES" ]; then
-              echo "❌ Error: No files found for pattern: $pattern"
+            echo "🔍 Search for pattern: $pattern"
+            
+            FOUND=false
+            while read -r src; do
+              [ -z "$src" ] && continue
+              FOUND=true
+              FILENAME=$(basename "$src")
+              
+              if [[ "$src" == *"targets/"* ]]; then
+                T_INFO=$(echo "$src" | awk -F'/targets/' '{print $2}' | cut -d'/' -f1,2 | tr '/' '_')
+                NEW_NAME="${FILENAME%.ipk}_${T_INFO}.ipk"
+                echo "📦 Target-Match: $T_INFO -> $NEW_NAME"
+              else
+                NEW_NAME="${FILENAME%.ipk}_${{ inputs.arch }}.ipk"
+                echo "📦 Arch-Match: ${{ inputs.arch }} -> $NEW_NAME"
+              fi
+              
+              cp "$src" "${{ github.workspace }}/filtered-assets/$NEW_NAME"
+            done < <(find ${{ github.workspace }}/artifacts/bin/ -name "$pattern" -type f)
+
+            if [ "$FOUND" = false ]; then
+              echo "❌ Error: No files found!"
               exit 1
             fi
-            cp -v $FILES ${{ github.workspace }}/filtered-assets/
           done
 
       - name: Upload Artifact
