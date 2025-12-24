@@ -143,19 +143,12 @@ jobs:
             
             find ${{ github.workspace }}/artifacts/bin/ -name "$pattern" -type f | while read -r src; do
               FILENAME=$(basename "$src")
-              
-              # if [[ "${{ inputs.arch }}" == *"-"* ]]; then
-              #   if [[ "$src" == *"targets/"* ]] && [[ "$src" != *"$MAIN_TARGET"* ]]; then
-              #     echo "⚠️ Skipping mismatching target path: $src"
-              #     continue
-              #   fi
-              # fi
 
-              if [[ "$src" == *"targets/"* ]]; then
+              if [[ "$src" == "*targets/*" ]]; then
                 T_INFO=$(echo "$src" | awk -F'/targets/' '{print $2}' | cut -d'/' -f1,2 | tr '/' '_')
-                NEW_NAME="${FILENAME%.ipk}_${T_INFO}.ipk"
+                NEW_NAME="${FILENAME%.ipk}_${T_INFO}_${{ inputs.openwrt_version }}.ipk"
               else
-                NEW_NAME="${FILENAME%.ipk}_${{ inputs.arch }}.ipk"
+                NEW_NAME="${FILENAME%.ipk}_${{ inputs.openwrt_version }}.ipk"
               fi
 
               echo "📦 Copying: $FILENAME"
