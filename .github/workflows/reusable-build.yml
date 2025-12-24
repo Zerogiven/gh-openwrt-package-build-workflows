@@ -105,7 +105,7 @@ jobs:
           mkdir -p ${{ github.workspace }}/feed
 
       - name: Build with OpenWrt SDK
-        uses: openwrt/gh-action-sdk@v9
+        uses: Zerogiven/gh-action-sdk@main
         env:
           ARCH: ${{ inputs.arch }}-${{ inputs.openwrt_build_version }}
           TARGET: ${{ inputs.target }}
