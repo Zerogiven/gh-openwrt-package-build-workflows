@@ -106,9 +106,20 @@ jobs:
 
       - name: Build with OpenWrt SDK
         uses: Zerogiven/gh-action-sdk@main
+        if: always() && inputs.target != ''
         env:
           ARCH: ${{ inputs.arch }}-${{ inputs.openwrt_build_version }}
           TARGET: ${{ inputs.target }}
+          PACKAGES: ${{ inputs.sdk_packages }}
+          V: ${{ inputs.verbose && 'sc' || '0' }}
+          FEED_DIR: ${{ github.workspace }}/feed
+          ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
+
+      - name: Build with OpenWrt SDK
+        uses: Zerogiven/gh-action-sdk@main
+        if: always() && inputs.target == ''
+        env:
+          ARCH: ${{ inputs.arch }}-${{ inputs.openwrt_build_version }}
           PACKAGES: ${{ inputs.sdk_packages }}
           V: ${{ inputs.verbose && 'sc' || '0' }}
           FEED_DIR: ${{ github.workspace }}/feed
