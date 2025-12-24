@@ -21,6 +21,9 @@ on:
       arch:
         required: true
         type: string
+      target:
+        required: false
+        type: string
       selected_version:
         required: false
         type: string
@@ -105,6 +108,7 @@ jobs:
         uses: openwrt/gh-action-sdk@v9
         env:
           ARCH: ${{ inputs.arch }}-${{ inputs.openwrt_build_version }}
+          TARGET: ${{ inputs.target }}
           PACKAGES: ${{ inputs.sdk_packages }}
           V: ${{ inputs.verbose && 'sc' || '0' }}
           FEED_DIR: ${{ github.workspace }}/feed
