@@ -141,7 +141,7 @@ jobs:
 
               if [[ "$src" =~ "/targets/" ]]; then
                 T_INFO=$(echo "$src" | awk -F'/targets/' '{print $2}' | cut -d'/' -f1,2 | tr '/' '_')
-                NEW_NAME="${FILENAME%.ipk}_${T_INFO}.ipk"
+                NEW_NAME="${FILENAME%.ipk}_${T_INFO}_${{ inputs.openwrt_version }}.ipk"
               else
                 NEW_NAME="${FILENAME%.ipk}_${{ inputs.openwrt_version }}.ipk"
               fi
