@@ -58,5 +58,5 @@ jobs:
           tag_name: ${{ inputs.tag_name }}
           files: ${{ github.workspace }}/release-assets/${{ inputs.release_file_pattern }}
           generate_release_notes: true
-          body: ${{ steps.changelog.outputs.changelog }} :: ${{ steps.changelog_second.outputs.changes }} :: ${{ steps.changelog_third.outputs.changes }}
+          body: ${{ steps.changelog.outputs.changelog }} ${{ steps.changelog_second.outputs.changes }} ${{ steps.changelog_third.outputs.changes }}
           token: ${{ secrets.RELEASE_TOKEN }}
