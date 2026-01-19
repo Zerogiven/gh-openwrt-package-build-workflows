@@ -33,31 +33,14 @@ jobs:
           path: ${{ github.workspace }}/release-assets/
           merge-multiple: true
 
-      - name: Create Changelog (2)
-        id: changelog_second
-        uses: loopwerk/tag-changelog@v1
-        with:
-          token: ${{ secrets.RELEASE_TOKEN }}
-
-      - name: Debug
-        run: |
-          echo "${{ steps.changelog_second.outputs.changes }}"
-
-      - name: Create Changelog (3)
-        id: changelog_third
+      - name: Create Changelog
+        id: changelog
         uses: requarks/changelog-action@v1
         with:
           token: ${{ secrets.RELEASE_TOKEN }}
           tag: ${{ inputs.tag_name }}
-
-      - name: Debug
-        run: |
-          echo "${{ steps.changelog_third.outputs.changes }}"
-
-      - name: Create Changelog (1)
-        uses: Helmisek/conventional-changelog-generator@v1.0.6-release
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          reverseOrder: true
+          exclude_types: other,doc,chore,refactor,format
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -65,5 +48,5 @@ jobs:
           tag_name: ${{ inputs.tag_name }}
           files: ${{ github.workspace }}/release-assets/${{ inputs.release_file_pattern }}
           generate_release_notes: true
-          body: ${{ steps.changelog_second.outputs.changes }} ${{ steps.changelog_third.outputs.changes }}
+          body: ${{ steps.changelog.outputs.changes }}
           token: ${{ secrets.RELEASE_TOKEN }}
