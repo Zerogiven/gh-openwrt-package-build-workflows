@@ -33,12 +33,6 @@ jobs:
           path: ${{ github.workspace }}/release-assets/
           merge-multiple: true
 
-      - name: Get Changelog
-        id: changelog
-        uses: Helmisek/conventional-changelog-generator@v1.0.6-release
-        with:
-          token: ${{ secrets.RELEASE_TOKEN }}
-
       - name: Create Changelog (2)
         id: changelog_second
         uses: loopwerk/tag-changelog@v1
@@ -58,5 +52,5 @@ jobs:
           tag_name: ${{ inputs.tag_name }}
           files: ${{ github.workspace }}/release-assets/${{ inputs.release_file_pattern }}
           generate_release_notes: true
-          body: ${{ steps.changelog.outputs.changelog }} ${{ steps.changelog_second.outputs.changes }} ${{ steps.changelog_third.outputs.changes }}
+          body: ${{ steps.changelog_second.outputs.changes }} ${{ steps.changelog_third.outputs.changes }}
           token: ${{ secrets.RELEASE_TOKEN }}
