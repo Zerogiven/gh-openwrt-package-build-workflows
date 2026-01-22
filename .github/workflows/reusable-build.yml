@@ -135,15 +135,18 @@ jobs:
           echo "${{ inputs.artifacts_patterns }}" | while read -r pattern; do
             [ -z "$pattern" ] && continue
             echo "🔍 Searching for: $pattern"
-            
+
             find ${{ github.workspace }}/artifacts/bin/ -name "$pattern" -type f | while read -r src; do
               FILENAME=$(basename "$src")
 
+              EXT="${FILENAME##*.}"
+              BASE="${FILENAME%.*}"
+
               if [[ "$src" =~ "/targets/" ]]; then
                 T_INFO=$(echo "$src" | awk -F'/targets/' '{print $2}' | cut -d'/' -f1,2 | tr '/' '_')
-                NEW_NAME="${FILENAME%.ipk}_${T_INFO}_${{ inputs.openwrt_version }}.ipk"
+                NEW_NAME="${BASE}_${T_INFO}_${{ inputs.openwrt_version }}.${EXT}"
               else
-                NEW_NAME="${FILENAME%.ipk}_${{ inputs.openwrt_version }}.ipk"
+                NEW_NAME="${BASE}_${{ inputs.openwrt_version }}.${EXT}"
               fi
 
               echo "📦 Copying: $FILENAME"
@@ -156,5 +159,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: ${{ inputs.package_name }}-${{ steps.version_logic.outputs.version }}-${{ inputs.openwrt_version }}-${{ inputs.arch }}
-          path: ${{ github.workspace }}/filtered-assets/*.ipk
+          path: |
+            ${{ github.workspace }}/filtered-assets/*.ipk
+            ${{ github.workspace }}/filtered-assets/*.apk
           retention-days: 7
