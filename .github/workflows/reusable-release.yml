@@ -40,7 +40,7 @@ jobs:
           token: ${{ secrets.RELEASE_TOKEN }}
           tag: ${{ inputs.tag_name }}
           reverseOrder: true
-          exclude_types: other,doc,chore,refactor,format
+          excludeTypes: other,doc,chore,refactor,format,debug
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
