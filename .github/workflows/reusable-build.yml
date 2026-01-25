@@ -101,7 +101,9 @@ jobs:
           android: true
           dotnet: true
           haskell: true
+          docker-images: true
           large-packages: true
+          swap-storage: false
 
       - name: Create Swap Space
         if: ${{ inputs.create_swap }}
