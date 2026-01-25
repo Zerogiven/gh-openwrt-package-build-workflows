@@ -32,6 +32,10 @@ on:
         required: false
         type: boolean
         default: false
+      create_swap:
+        required: false
+        type: boolean
+        default: false
       verbose:
         required: false
         type: boolean
@@ -98,6 +102,12 @@ jobs:
           dotnet: true
           haskell: true
           large-packages: true
+
+      - name: Create Swap Space
+        if: ${{ inputs.create_swap }}
+        uses: actionhippie/swap-space@v1
+        with:
+          size: 10G
 
       - name: Initialize SDK Directories
         run: |
