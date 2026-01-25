@@ -47,7 +47,7 @@ on:
 jobs:
   build:
     name: Build ${{ inputs.openwrt_version }} - ${{ inputs.arch }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: |
       inputs.selected_version == 'both' ||
       inputs.selected_version == inputs.openwrt_version
