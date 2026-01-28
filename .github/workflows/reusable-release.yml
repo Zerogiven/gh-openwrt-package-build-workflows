@@ -11,7 +11,7 @@ on:
         description: 'Pattern for files to include in the release (e.g. *.ipk)'
         required: false
         type: string
-        default: '*.ipk'
+        default: '*.[ia]pk'
       tag_name:
         required: true
         type: string
