@@ -181,3 +181,4 @@ jobs:
             ${{ github.workspace }}/filtered-assets/*.ipk
             ${{ github.workspace }}/filtered-assets/*.apk
           retention-days: 7
+          overwrite: true
