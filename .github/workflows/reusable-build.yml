@@ -176,7 +176,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ inputs.package_name }}-${{ steps.version_logic.outputs.version }}-${{ inputs.openwrt_version }}-${{ inputs.arch }}
+          name: ${{ inputs.package_name }}-${{ steps.version_logic.outputs.version }}-${{ inputs.openwrt_build_version }}-${{ inputs.arch }}
           path: |
             ${{ github.workspace }}/filtered-assets/*.ipk
             ${{ github.workspace }}/filtered-assets/*.apk
