@@ -154,17 +154,36 @@ jobs:
               EXT="${FILENAME##*.}"
               BASE="${FILENAME%.*}"
 
-              if [[ "$src" =~ "/targets/" ]]; then
-                T_INFO=$(echo "$src" | awk -F'/targets/' '{print $2}' | cut -d'/' -f1,2 | tr '/' '_')
-                if [[ "$FILENAME" == kmod-* ]]; then
-                  # For kmod files, replace kernel version with build version
-                  CLEAN_BASE=$(echo "$BASE" | sed -E "s/_[0-9]+(\.[0-9]+)+-r[0-9]+_/_${T_INFO}_/")
-                  NEW_NAME="${CLEAN_BASE}_${{ inputs.openwrt_build_version }}.${EXT}"
+              if [[ "$EXT" == "apk" ]]; then
+                # 25.12+: arch is NOT in filename. Read it from .PKGINFO via apk-tools.
+                PKG_ARCH=$(apk adbdump "$src" 2>/dev/null \
+                          | awk '/^  arch:/{print $2; exit}')
+
+                if [[ "$PKG_ARCH" == "noarch" || -z "$PKG_ARCH" ]]; then
+                  ARCH_INFO="all"
                 else
-                  NEW_NAME="${BASE}_${T_INFO}_${{ inputs.openwrt_version }}.${EXT}"
+                  ARCH_INFO="$PKG_ARCH"
+                fi
+
+                if [[ "$FILENAME" == kmod-* ]]; then
+                  NEW_NAME="${BASE}_${ARCH_INFO}_${{ inputs.openwrt_build_version }}.${EXT}"
+                else
+                  NEW_NAME="${BASE}_${ARCH_INFO}_${{ inputs.openwrt_version }}.${EXT}"
                 fi
               else
-                NEW_NAME="${BASE}_${{ inputs.openwrt_version }}.${EXT}"
+                # .ipk (24.10 and earlier): existing logic, untouched.
+                if [[ "$src" =~ "/targets/" ]]; then
+                  T_INFO=$(echo "$src" | awk -F'/targets/' '{print $2}' | cut -d'/' -f1,2 | tr '/' '_')
+                  if [[ "$FILENAME" == kmod-* ]]; then
+                    # For kmod files, replace kernel version with build version
+                    CLEAN_BASE=$(echo "$BASE" | sed -E "s/_[0-9]+(\.[0-9]+)+-r[0-9]+_/_${T_INFO}_/")
+                    NEW_NAME="${CLEAN_BASE}_${{ inputs.openwrt_build_version }}.${EXT}"
+                  else
+                    NEW_NAME="${BASE}_${T_INFO}_${{ inputs.openwrt_version }}.${EXT}"
+                  fi
+                else
+                  NEW_NAME="${BASE}_${{ inputs.openwrt_version }}.${EXT}"
+                fi
               fi
 
               echo "📦 Copying: $FILENAME"
