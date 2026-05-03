@@ -193,8 +193,9 @@ jobs:
                 if [[ "$src" =~ "/targets/" ]]; then
                   T_INFO=$(echo "$src" | awk -F'/targets/' '{print $2}' | cut -d'/' -f1,2 | tr '/' '_')
                   if [[ "$FILENAME" == kmod-* ]]; then
-                    # Insert T_INFO after the package version (preserve pkgver).
-                    CLEAN_BASE=$(echo "$BASE" | sed -E "s/(_[0-9]+(\.[0-9]+)+-r[0-9]+)_/\1_${T_INFO}_/")
+                    # Strip kernel version (3 leading dotted parts) if present
+                    # and insert T_INFO after the package version.
+                    CLEAN_BASE=$(echo "$BASE" | sed -E "s/_([0-9]+\.[0-9]+\.[0-9]+\.)?([0-9]+(\.[0-9]+)*-r[0-9]+)_/_\2_${T_INFO}_/")
                     NEW_NAME="${CLEAN_BASE}_${{ inputs.openwrt_build_version }}.${EXT}"
                   else
                     NEW_NAME="${BASE}_${T_INFO}_${{ inputs.openwrt_version }}.${EXT}"
