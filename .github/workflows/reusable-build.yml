@@ -162,12 +162,12 @@ jobs:
               BASE="${FILENAME%.*}"
 
               if [[ "$EXT" == "apk" ]]; then
-                # 25.12+: arch is NOT in filename. Read it from package metadata.
-
-                PKG_ARCH=$(apk adbdump "$src" \
-                          | awk -F': *' '/^[[:space:]]*arch[[:space:]]*:/{print $2; exit}' \
-                          | tr -d '[:space:]')
-                echo "🔎 apk arch detected: '$PKG_ARCH' (file: $FILENAME)"
+                # 25.12+: arch is NOT in filename. Read all metadata from one adbdump call.
+                ADB_DUMP=$(apk adbdump "$src")
+                PKG_NAME=$(echo "$ADB_DUMP" | awk -F': *' '/^[[:space:]]*name[[:space:]]*:/{print $2; exit}' | tr -d '[:space:]')
+                PKG_VERSION=$(echo "$ADB_DUMP" | awk -F': *' '/^[[:space:]]*version[[:space:]]*:/{print $2; exit}' | tr -d '[:space:]')
+                PKG_ARCH=$(echo "$ADB_DUMP" | awk -F': *' '/^[[:space:]]*arch[[:space:]]*:/{print $2; exit}' | tr -d '[:space:]')
+                echo "🔎 apk metadata: name='$PKG_NAME' version='$PKG_VERSION' arch='$PKG_ARCH' (file: $FILENAME)"
 
                 if [[ "$PKG_ARCH" == "noarch" || -z "$PKG_ARCH" ]]; then
                   ARCH_INFO="all"
@@ -176,17 +176,25 @@ jobs:
                 fi
 
                 if [[ "$FILENAME" == kmod-* ]]; then
-                  NEW_NAME="${BASE}_${ARCH_INFO}_${{ inputs.openwrt_build_version }}.${EXT}"
+                  # Kmod filename has kernel version mashed into BASE (e.g.
+                  # kmod-foo-6.12.74.1.4.1-r1). Reconstruct from metadata to
+                  # drop the kernel version.
+                  if [[ "$src" =~ "/targets/" ]]; then
+                    T_INFO=$(echo "$src" | awk -F'/targets/' '{print $2}' | cut -d'/' -f1,2 | tr '/' '_')
+                    NEW_NAME="${PKG_NAME}_${PKG_VERSION}_${T_INFO}_${ARCH_INFO}_${{ inputs.openwrt_build_version }}.${EXT}"
+                  else
+                    NEW_NAME="${PKG_NAME}_${PKG_VERSION}_${ARCH_INFO}_${{ inputs.openwrt_build_version }}.${EXT}"
+                  fi
                 else
                   NEW_NAME="${BASE}_${ARCH_INFO}_${{ inputs.openwrt_version }}.${EXT}"
                 fi
               else
-                # .ipk (24.10 and earlier): existing logic, untouched.
+                # .ipk (24.10 and earlier).
                 if [[ "$src" =~ "/targets/" ]]; then
                   T_INFO=$(echo "$src" | awk -F'/targets/' '{print $2}' | cut -d'/' -f1,2 | tr '/' '_')
                   if [[ "$FILENAME" == kmod-* ]]; then
-                    # For kmod files, replace kernel version with build version
-                    CLEAN_BASE=$(echo "$BASE" | sed -E "s/_[0-9]+(\.[0-9]+)+-r[0-9]+_/_${T_INFO}_/")
+                    # Insert T_INFO after the package version (preserve pkgver).
+                    CLEAN_BASE=$(echo "$BASE" | sed -E "s/(_[0-9]+(\.[0-9]+)+-r[0-9]+)_/\1_${T_INFO}_/")
                     NEW_NAME="${CLEAN_BASE}_${{ inputs.openwrt_build_version }}.${EXT}"
                   else
                     NEW_NAME="${BASE}_${T_INFO}_${{ inputs.openwrt_version }}.${EXT}"
