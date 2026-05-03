@@ -163,10 +163,6 @@ jobs:
 
               if [[ "$EXT" == "apk" ]]; then
                 # 25.12+: arch is NOT in filename. Read it from package metadata.
-                # TEMP DEBUG: dump full apk adbdump output for inspection.
-                echo "----- apk adbdump $FILENAME -----"
-                apk adbdump "$src" || echo "(apk adbdump failed with exit $?)"
-                echo "----- end apk adbdump -----"
 
                 PKG_ARCH=$(apk adbdump "$src" \
                           | awk -F': *' '/^[[:space:]]*arch[[:space:]]*:/{print $2; exit}' \
