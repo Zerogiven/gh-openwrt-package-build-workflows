@@ -155,9 +155,16 @@ jobs:
               BASE="${FILENAME%.*}"
 
               if [[ "$EXT" == "apk" ]]; then
-                # 25.12+: arch is NOT in filename. Read it from .PKGINFO via apk-tools.
-                PKG_ARCH=$(apk adbdump "$src" 2>/dev/null \
-                          | awk '/^  arch:/{print $2; exit}')
+                # 25.12+: arch is NOT in filename. Read it from package metadata.
+                # TEMP DEBUG: dump full apk adbdump output for inspection.
+                echo "----- apk adbdump $FILENAME -----"
+                apk adbdump "$src" || echo "(apk adbdump failed with exit $?)"
+                echo "----- end apk adbdump -----"
+
+                PKG_ARCH=$(apk adbdump "$src" \
+                          | awk -F': *' '/^[[:space:]]*arch[[:space:]]*:/{print $2; exit}' \
+                          | tr -d '[:space:]')
+                echo "🔎 apk arch detected: '$PKG_ARCH' (file: $FILENAME)"
 
                 if [[ "$PKG_ARCH" == "noarch" || -z "$PKG_ARCH" ]]; then
                   ARCH_INFO="all"
