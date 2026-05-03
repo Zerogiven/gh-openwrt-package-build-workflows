@@ -176,14 +176,14 @@ jobs:
                 fi
 
                 if [[ "$FILENAME" == kmod-* ]]; then
-                  # Kmod filename has kernel version mashed into BASE (e.g.
-                  # kmod-foo-6.12.74.1.4.1-r1). Reconstruct from metadata to
-                  # drop the kernel version.
+                  # Kmod metadata version embeds kernel version as 3 leading
+                  # dotted parts (e.g. 6.12.71.1.4.1-r1). Strip them.
+                  CLEAN_VERSION=$(echo "$PKG_VERSION" | sed -E 's/^[0-9]+\.[0-9]+\.[0-9]+\.//')
                   if [[ "$src" =~ "/targets/" ]]; then
                     T_INFO=$(echo "$src" | awk -F'/targets/' '{print $2}' | cut -d'/' -f1,2 | tr '/' '_')
-                    NEW_NAME="${PKG_NAME}_${PKG_VERSION}_${T_INFO}_${ARCH_INFO}_${{ inputs.openwrt_build_version }}.${EXT}"
+                    NEW_NAME="${PKG_NAME}_${CLEAN_VERSION}_${T_INFO}_${ARCH_INFO}_${{ inputs.openwrt_build_version }}.${EXT}"
                   else
-                    NEW_NAME="${PKG_NAME}_${PKG_VERSION}_${ARCH_INFO}_${{ inputs.openwrt_build_version }}.${EXT}"
+                    NEW_NAME="${PKG_NAME}_${CLEAN_VERSION}_${ARCH_INFO}_${{ inputs.openwrt_build_version }}.${EXT}"
                   fi
                 else
                   NEW_NAME="${BASE}_${ARCH_INFO}_${{ inputs.openwrt_version }}.${EXT}"
