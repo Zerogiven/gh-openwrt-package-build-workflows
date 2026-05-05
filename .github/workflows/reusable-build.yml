@@ -102,7 +102,7 @@ jobs:
           dotnet: true
           haskell: true
           docker-images: true
-          large-packages: true
+          large-packages: false
           swap-storage: false
 
       - name: Create Swap Space
