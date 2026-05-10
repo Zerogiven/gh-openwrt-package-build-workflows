@@ -136,8 +136,8 @@ jobs:
           V: ${{ inputs.verbose && 'sc' || '0' }}
           FEED_DIR: ${{ github.workspace }}/feed
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
-          KEY_BUILD: ${{ secrets.USIGN_SECRET }}
-          PRIVATE_KEY: ${{ secrets.APK_SIGN_KEY }}
+          # KEY_BUILD: ${{ secrets.USIGN_SECRET }}
+          # PRIVATE_KEY: ${{ secrets.APK_SIGN_KEY }}
 
       - name: Build with OpenWrt SDK
         uses: openwrt/gh-action-sdk@main
@@ -148,8 +148,8 @@ jobs:
           V: ${{ inputs.verbose && 'sc' || '0' }}
           FEED_DIR: ${{ github.workspace }}/feed
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
-          KEY_BUILD: ${{ secrets.USIGN_SECRET }}
-          PRIVATE_KEY: ${{ secrets.APK_SIGN_KEY }}
+          # KEY_BUILD: ${{ secrets.USIGN_SECRET }}
+          # PRIVATE_KEY: ${{ secrets.APK_SIGN_KEY }}
 
       - name: Install apk-tools
         run: |
@@ -224,6 +224,56 @@ jobs:
               cp -v "$src" "${{ github.workspace }}/filtered-assets/$NEW_NAME"
             done
           done
+
+      - name: Prepare signing keys
+        env:
+          APK_SIGN_KEY: ${{ secrets.APK_SIGN_KEY }}
+          APK_PUB_KEY_URL: 'https://github.com/Zerogiven-OpenWRT-Packages/package-feed/raw/main/Zerogiven_Feed.rsa.pub'
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${APK_SIGN_KEY}" ]]; then
+            echo "::error::APK_SIGN_KEY secret not set in this repo (or org-level)"
+            exit 1
+          fi
+
+          # Derive both filenames from the public-key URL so the signature
+          # metadata matches what /etc/apk/keys/ contains on the verifier side.
+          PUB_KEY_NAME="$(basename "${APK_PUB_KEY_URL}")"
+          PRIV_KEY_NAME="${PUB_KEY_NAME%.pub}"
+          PRIV_KEY_PATH="/tmp/${PRIV_KEY_NAME}"
+
+          sudo mkdir -p /etc/apk/keys
+          sudo wget -qO "/etc/apk/keys/${PUB_KEY_NAME}" "${APK_PUB_KEY_URL}"
+
+          echo "${APK_SIGN_KEY}" > "${PRIV_KEY_PATH}"
+          chmod 600 "${PRIV_KEY_PATH}"
+
+          echo "PRIV_KEY_PATH=${PRIV_KEY_PATH}" >> "$GITHUB_ENV"
+
+      - name: Sign apk packages
+        env:
+          ASSETS_DIR: ${{ github.workspace }}/filtered-assets
+        run: |
+          set -euo pipefail
+
+          shopt -s nullglob
+          apk_files=("${ASSETS_DIR}"/*.apk)
+          if [[ ${#apk_files[@]} -eq 0 ]]; then
+            echo "No .apk files to sign in ${ASSETS_DIR}"
+            exit 0
+          fi
+
+          for f in "${apk_files[@]}"; do
+            echo "🔏 Signing: $(basename "$f")"
+            apk adbsign --sign-key "${PRIV_KEY_PATH}" "$f"
+          done
+
+      # NOTE: per-file signing for .ipk is intentionally not implemented.
+      # OpenWrt does not embed signatures in individual .ipk files; trust comes
+      # from a usign-signed `Packages` index at feed-publish time, which is
+      # outside this workflow's scope. A future step can be added here if a
+      # custom verification scheme requires per-file .ipk signatures.
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v6
