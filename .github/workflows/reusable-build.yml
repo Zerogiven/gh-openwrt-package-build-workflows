@@ -40,6 +40,12 @@ on:
         required: false
         type: boolean
         default: false
+      apk_key:
+        required: false
+        type: string
+      ipk_key:
+        required: false
+        type: string
     outputs:
       tag_name:
         value: ${{ jobs.build.outputs.tag_name }}
@@ -121,13 +127,12 @@ jobs:
         if: always() && inputs.target != ''
         env:
           ARCH: ${{ inputs.arch }}-${{ inputs.openwrt_build_version }}
-          # TARGET: ${{ inputs.target }}
           PACKAGES: ${{ inputs.sdk_packages }}
           V: ${{ inputs.verbose && 'sc' || '0' }}
           FEED_DIR: ${{ github.workspace }}/feed
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
-          KEY_BUILD: ${{ secrets.USIGN_SECRET }}
-          PRIVATE_KEY: ${{ secrets.APK_SIGN_KEY }}
+          KEY_BUILD: ${{ inputs.ipk_key }}
+          PRIVATE_KEY: ${{ inputs.apk_key }}
 
       - name: Build with OpenWrt SDK
         uses: openwrt/gh-action-sdk@main
@@ -138,8 +143,8 @@ jobs:
           V: ${{ inputs.verbose && 'sc' || '0' }}
           FEED_DIR: ${{ github.workspace }}/feed
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
-          KEY_BUILD: ${{ secrets.USIGN_SECRET }}
-          PRIVATE_KEY: ${{ secrets.APK_SIGN_KEY }}
+          KEY_BUILD: ${{ inputs.ipk_key }}
+          PRIVATE_KEY: ${{ inputs.apk_key }}
 
       - name: Install apk-tools
         run: |
