@@ -40,12 +40,6 @@ on:
         required: false
         type: boolean
         default: false
-      apk_key:
-        required: false
-        type: string
-      ipk_key:
-        required: false
-        type: string
     secrets:
       USIGN_SECRET:
         required: false
@@ -266,7 +260,7 @@ jobs:
 
           for f in "${apk_files[@]}"; do
             echo "🔏 Signing: $(basename "$f")"
-            apk adbsign --sign-key "${PRIV_KEY_PATH}" "$f"
+            apk adbsign --allow-untrusted --sign-key "${PRIV_KEY_PATH}" "$f"
           done
 
       # NOTE: per-file signing for .ipk is intentionally not implemented.
