@@ -117,7 +117,7 @@ jobs:
           mkdir -p ${{ github.workspace }}/feed
 
       - name: Build with OpenWrt SDK
-        uses: openwrt/gh-action-sdk@v10
+        uses: openwrt/gh-action-sdk@main
         if: always() && inputs.target != ''
         env:
           ARCH: ${{ inputs.arch }}-${{ inputs.openwrt_build_version }}
