@@ -130,7 +130,7 @@ jobs:
           PRIVATE_KEY: ${{ secrets.APK_SIGN_KEY }}
 
       - name: Build with OpenWrt SDK
-        uses: openwrt/gh-action-sdk@v10
+        uses: openwrt/gh-action-sdk@main
         if: always() && inputs.target == ''
         env:
           ARCH: ${{ inputs.arch }}-${{ inputs.openwrt_build_version }}
