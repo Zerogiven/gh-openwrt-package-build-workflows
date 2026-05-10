@@ -56,7 +56,7 @@ jobs:
 
     steps:
       - name: Checkout Source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           path: ${{ github.workspace }}/feed/${{ inputs.package_name }}
           fetch-depth: 0
@@ -117,25 +117,18 @@ jobs:
           mkdir -p ${{ github.workspace }}/feed
 
       - name: Build with OpenWrt SDK
-        uses: Zerogiven/gh-action-sdk@prometheus-node-exporter-lua-patch
+        uses: openwrt/gh-action-sdk@v10
         if: always() && inputs.target != ''
         env:
           ARCH: ${{ inputs.arch }}-${{ inputs.openwrt_build_version }}
-          TARGET: ${{ inputs.target }}
+          # TARGET: ${{ inputs.target }}
           PACKAGES: ${{ inputs.sdk_packages }}
           V: ${{ inputs.verbose && 'sc' || '0' }}
           FEED_DIR: ${{ github.workspace }}/feed
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
 
-      - name: Install apk-tools (for reading .apk metadata)
-        run: |
-          sudo wget -qO /usr/local/bin/apk \
-            https://gitlab.alpinelinux.org/api/v4/projects/5/packages/generic/v3.0.6/x86_64/apk.static
-          sudo chmod +x /usr/local/bin/apk
-          apk --version
-
       - name: Build with OpenWrt SDK
-        uses: Zerogiven/gh-action-sdk@prometheus-node-exporter-lua-patch
+        uses: openwrt/gh-action-sdk@v10
         if: always() && inputs.target == ''
         env:
           ARCH: ${{ inputs.arch }}-${{ inputs.openwrt_build_version }}
@@ -143,6 +136,30 @@ jobs:
           V: ${{ inputs.verbose && 'sc' || '0' }}
           FEED_DIR: ${{ github.workspace }}/feed
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
+
+      - name: Install apk-tools
+        run: |
+          sudo wget -qO /usr/local/bin/apk \
+            https://gitlab.alpinelinux.org/api/v4/projects/5/packages/generic/v3.0.6/x86_64/apk.static
+          sudo chmod +x /usr/local/bin/apk
+          apk --version
+
+      - name: Setup signing keys
+        env:
+          USIGN_SECRET: ${{ secrets.USIGN_SECRET }}
+          APK_SIGN_KEY: ${{ secrets.APK_SIGN_KEY }}
+        run: |
+          if [[ -n "$USIGN_SECRET" ]]; then
+            echo "$USIGN_SECRET" > /tmp/usign.secret
+            chmod 600 /tmp/usign.secret
+            echo "USIGN_KEY_AVAILABLE=true" >> $GITHUB_ENV
+          fi
+
+          if [[ -n "$APK_SIGN_KEY" ]]; then
+            echo "$APK_SIGN_KEY" > /tmp/Zerogiven_Feed.rsa
+            chmod 600 /tmp/Zerogiven_Feed.rsa
+            echo "APK_KEY_AVAILABLE=true" >> $GITHUB_ENV
+          fi
 
       - name: Collect and Filter Artifacts
         id: collect
@@ -163,6 +180,10 @@ jobs:
 
               if [[ "$EXT" == "apk" ]]; then
                 # 25.12+: arch is NOT in filename. Read all metadata from one adbdump call.
+                if [[ "${APK_KEY_AVAILABLE:-}" == "true" ]]; then
+                  apk adbsign --allow-untrusted --sign-key "/tmp/Zerogiven_Feed.rsa" "$src"
+                fi
+
                 ADB_DUMP=$(apk adbdump "$src")
                 PKG_NAME=$(echo "$ADB_DUMP" | awk -F': *' '/^[[:space:]]*name[[:space:]]*:/{print $2; exit}' | tr -d '[:space:]')
                 PKG_VERSION=$(echo "$ADB_DUMP" | awk -F': *' '/^[[:space:]]*version[[:space:]]*:/{print $2; exit}' | tr -d '[:space:]')
