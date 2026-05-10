@@ -46,6 +46,11 @@ on:
       ipk_key:
         required: false
         type: string
+    secrets:
+      USIGN_SECRET:
+        required: false
+      APK_SIGN_KEY:
+        required: false
     outputs:
       tag_name:
         value: ${{ jobs.build.outputs.tag_name }}
@@ -131,8 +136,8 @@ jobs:
           V: ${{ inputs.verbose && 'sc' || '0' }}
           FEED_DIR: ${{ github.workspace }}/feed
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
-          KEY_BUILD: ${{ inputs.ipk_key }}
-          PRIVATE_KEY: ${{ inputs.apk_key }}
+          KEY_BUILD: ${{ secrets.USIGN_SECRET }}
+          PRIVATE_KEY: ${{ secrets.APK_SIGN_KEY }}
 
       - name: Build with OpenWrt SDK
         uses: openwrt/gh-action-sdk@main
@@ -143,8 +148,8 @@ jobs:
           V: ${{ inputs.verbose && 'sc' || '0' }}
           FEED_DIR: ${{ github.workspace }}/feed
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
-          KEY_BUILD: ${{ inputs.ipk_key }}
-          PRIVATE_KEY: ${{ inputs.apk_key }}
+          KEY_BUILD: ${{ secrets.USIGN_SECRET }}
+          PRIVATE_KEY: ${{ secrets.APK_SIGN_KEY }}
 
       - name: Install apk-tools
         run: |
