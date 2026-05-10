@@ -13,7 +13,7 @@ on:
         type: string
         default: '*.[ia]pk'
       tag_name:
-        required: true
+        required: false
         type: string
       draft:
         required: true
@@ -39,6 +39,7 @@ jobs:
 
       - name: Create Changelog
         id: changelog
+        if: inputs.tag_name != ''
         uses: requarks/changelog-action@v1
         with:
           token: ${{ secrets.RELEASE_TOKEN }}
