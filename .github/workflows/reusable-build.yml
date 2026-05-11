@@ -122,7 +122,8 @@ jobs:
           mkdir -p ${{ github.workspace }}/feed
 
       - name: Build with OpenWrt SDK
-        uses: openwrt/gh-action-sdk@main
+        uses: Zerogiven/gh-action-sdk@fixed
+        # uses: openwrt/gh-action-sdk@main
         if: always() && inputs.target != ''
         env:
           ARCH: ${{ inputs.arch }}-${{ inputs.openwrt_build_version }}
@@ -134,7 +135,8 @@ jobs:
           # PRIVATE_KEY: ${{ secrets.APK_SIGN_KEY }}
 
       - name: Build with OpenWrt SDK
-        uses: openwrt/gh-action-sdk@main
+        uses: Zerogiven/gh-action-sdk@fixed
+        # uses: openwrt/gh-action-sdk@main
         if: always() && inputs.target == ''
         env:
           ARCH: ${{ inputs.arch }}-${{ inputs.openwrt_build_version }}
