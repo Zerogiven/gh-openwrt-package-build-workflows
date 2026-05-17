@@ -27,7 +27,7 @@ on:
       selected_version:
         required: false
         type: string
-        default: 'both'
+        default: 'all'
       free_disk_space:
         required: false
         type: boolean
@@ -44,6 +44,11 @@ on:
         required: false
         type: boolean
         default: false
+    secrets:
+      USIGN_SECRET:
+        required: false
+      APK_SIGN_KEY:
+        required: false
     outputs:
       tag_name:
         value: ${{ jobs.build.outputs.tag_name }}
@@ -53,14 +58,14 @@ jobs:
     name: Build ${{ inputs.openwrt_version }} - ${{ inputs.arch }}
     runs-on: ubuntu-24.04
     if: |
-      inputs.selected_version == 'both' ||
+      inputs.selected_version == 'all' ||
       inputs.selected_version == inputs.openwrt_version
     outputs:
       tag_name: ${{ steps.version_logic.outputs.version_tag }}
 
     steps:
       - name: Checkout Source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           path: ${{ github.workspace }}/feed/${{ inputs.package_name }}
           fetch-depth: 0
@@ -106,7 +111,7 @@ jobs:
           dotnet: true
           haskell: true
           docker-images: true
-          large-packages: true
+          large-packages: false
           swap-storage: false
 
       - name: Create Swap Space
@@ -121,18 +126,19 @@ jobs:
           mkdir -p ${{ github.workspace }}/feed
 
       - name: Build with OpenWrt SDK
-        uses: Zerogiven/gh-action-sdk@main
+        uses: openwrt/gh-action-sdk@main
         if: always() && inputs.target != ''
         env:
           ARCH: ${{ inputs.arch }}-${{ inputs.openwrt_build_version }}
-          TARGET: ${{ inputs.target }}
           PACKAGES: ${{ inputs.sdk_packages }}
           V: ${{ inputs.verbose && 'sc' || '0' }}
           FEED_DIR: ${{ github.workspace }}/feed
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
+          # KEY_BUILD: ${{ secrets.USIGN_SECRET }}
+          # PRIVATE_KEY: ${{ secrets.APK_SIGN_KEY }}
 
       - name: Build with OpenWrt SDK
-        uses: Zerogiven/gh-action-sdk@main
+        uses: openwrt/gh-action-sdk@main
         if: always() && inputs.target == ''
         env:
           ARCH: ${{ inputs.arch }}-${{ inputs.openwrt_build_version }}
@@ -140,6 +146,15 @@ jobs:
           V: ${{ inputs.verbose && 'sc' || '0' }}
           FEED_DIR: ${{ github.workspace }}/feed
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
+          # KEY_BUILD: ${{ secrets.USIGN_SECRET }}
+          # PRIVATE_KEY: ${{ secrets.APK_SIGN_KEY }}
+
+      - name: Install apk-tools
+        run: |
+          sudo wget -qO /usr/local/bin/apk \
+            https://gitlab.alpinelinux.org/api/v4/projects/5/packages/generic/v3.0.6/x86_64/apk.static
+          sudo chmod +x /usr/local/bin/apk
+          apk --version
 
       - name: Collect and Filter Artifacts
         id: collect
@@ -158,17 +173,48 @@ jobs:
               EXT="${FILENAME##*.}"
               BASE="${FILENAME%.*}"
 
-              if [[ "$src" =~ "/targets/" ]]; then
-                T_INFO=$(echo "$src" | awk -F'/targets/' '{print $2}' | cut -d'/' -f1,2 | tr '/' '_')
-                if [[ "$FILENAME" == kmod-* ]]; then
-                  # For kmod files, replace kernel version with build version
-                  CLEAN_BASE=$(echo "$BASE" | sed -E "s/_[0-9]+(\.[0-9]+)+-r[0-9]+_/_${T_INFO}_/")
-                  NEW_NAME="${CLEAN_BASE}_${{ inputs.openwrt_build_version }}.${EXT}"
+              if [[ "$EXT" == "apk" ]]; then
+                # 25.12+: arch is NOT in filename. Read all metadata from one adbdump call.
+                ADB_DUMP=$(apk adbdump "$src")
+                PKG_NAME=$(echo "$ADB_DUMP" | awk -F': *' '/^[[:space:]]*name[[:space:]]*:/{print $2; exit}' | tr -d '[:space:]')
+                PKG_VERSION=$(echo "$ADB_DUMP" | awk -F': *' '/^[[:space:]]*version[[:space:]]*:/{print $2; exit}' | tr -d '[:space:]')
+                PKG_ARCH=$(echo "$ADB_DUMP" | awk -F': *' '/^[[:space:]]*arch[[:space:]]*:/{print $2; exit}' | tr -d '[:space:]')
+                echo "🔎 apk metadata: name='$PKG_NAME' version='$PKG_VERSION' arch='$PKG_ARCH' (file: $FILENAME)"
+
+                if [[ "$PKG_ARCH" == "noarch" || -z "$PKG_ARCH" ]]; then
+                  ARCH_INFO="all"
                 else
-                  NEW_NAME="${BASE}_${T_INFO}_${{ inputs.openwrt_version }}.${EXT}"
+                  ARCH_INFO="$PKG_ARCH"
+                fi
+
+                if [[ "$FILENAME" == kmod-* ]]; then
+                  # Kmod metadata version embeds kernel version as 3 leading
+                  # dotted parts (e.g. 6.12.71.1.4.1-r1). Strip them.
+                  CLEAN_VERSION=$(echo "$PKG_VERSION" | sed -E 's/^[0-9]+\.[0-9]+\.[0-9]+\.//')
+                  if [[ "$src" =~ "/targets/" ]]; then
+                    T_INFO=$(echo "$src" | awk -F'/targets/' '{print $2}' | cut -d'/' -f1,2 | tr '/' '_')
+                    NEW_NAME="${PKG_NAME}_${CLEAN_VERSION}_${T_INFO}_${ARCH_INFO}_${{ inputs.openwrt_build_version }}.${EXT}"
+                  else
+                    NEW_NAME="${PKG_NAME}_${CLEAN_VERSION}_${ARCH_INFO}_${{ inputs.openwrt_build_version }}.${EXT}"
+                  fi
+                else
+                  NEW_NAME="${BASE}_${ARCH_INFO}_${{ inputs.openwrt_version }}.${EXT}"
                 fi
               else
-                NEW_NAME="${BASE}_${{ inputs.openwrt_version }}.${EXT}"
+                # .ipk (24.10 and earlier).
+                if [[ "$src" =~ "/targets/" ]]; then
+                  T_INFO=$(echo "$src" | awk -F'/targets/' '{print $2}' | cut -d'/' -f1,2 | tr '/' '_')
+                  if [[ "$FILENAME" == kmod-* ]]; then
+                    # Strip kernel version (3 leading dotted parts) if present
+                    # and insert T_INFO after the package version.
+                    CLEAN_BASE=$(echo "$BASE" | sed -E "s/_([0-9]+\.[0-9]+\.[0-9]+\.)?([0-9]+(\.[0-9]+)*-r[0-9]+)_/_\2_${T_INFO}_/")
+                    NEW_NAME="${CLEAN_BASE}_${{ inputs.openwrt_build_version }}.${EXT}"
+                  else
+                    NEW_NAME="${BASE}_${T_INFO}_${{ inputs.openwrt_version }}.${EXT}"
+                  fi
+                else
+                  NEW_NAME="${BASE}_${{ inputs.openwrt_version }}.${EXT}"
+                fi
               fi
 
               echo "📦 Copying: $FILENAME"
@@ -176,6 +222,56 @@ jobs:
               cp -v "$src" "${{ github.workspace }}/filtered-assets/$NEW_NAME"
             done
           done
+
+      - name: Prepare signing keys
+        env:
+          APK_SIGN_KEY: ${{ secrets.APK_SIGN_KEY }}
+          APK_PUB_KEY_URL: 'https://github.com/Zerogiven-OpenWRT-Packages/package-feed/raw/main/Zerogiven_Feed.rsa.pub'
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${APK_SIGN_KEY}" ]]; then
+            echo "::error::APK_SIGN_KEY secret not set in this repo (or org-level)"
+            exit 1
+          fi
+
+          # Derive both filenames from the public-key URL so the signature
+          # metadata matches what /etc/apk/keys/ contains on the verifier side.
+          PUB_KEY_NAME="$(basename "${APK_PUB_KEY_URL}")"
+          PRIV_KEY_NAME="${PUB_KEY_NAME%.pub}"
+          PRIV_KEY_PATH="/tmp/${PRIV_KEY_NAME}"
+
+          sudo mkdir -p /etc/apk/keys
+          sudo wget -qO "/etc/apk/keys/${PUB_KEY_NAME}" "${APK_PUB_KEY_URL}"
+
+          echo "${APK_SIGN_KEY}" > "${PRIV_KEY_PATH}"
+          chmod 600 "${PRIV_KEY_PATH}"
+
+          echo "PRIV_KEY_PATH=${PRIV_KEY_PATH}" >> "$GITHUB_ENV"
+
+      - name: Sign apk packages
+        env:
+          ASSETS_DIR: ${{ github.workspace }}/filtered-assets
+        run: |
+          set -euo pipefail
+
+          shopt -s nullglob
+          apk_files=("${ASSETS_DIR}"/*.apk)
+          if [[ ${#apk_files[@]} -eq 0 ]]; then
+            echo "No .apk files to sign in ${ASSETS_DIR}"
+            exit 0
+          fi
+
+          for f in "${apk_files[@]}"; do
+            echo "🔏 Signing: $(basename "$f")"
+            apk adbsign --allow-untrusted --sign-key "${PRIV_KEY_PATH}" "$f"
+          done
+
+      # NOTE: per-file signing for .ipk is intentionally not implemented.
+      # OpenWrt does not embed signatures in individual .ipk files; trust comes
+      # from a usign-signed `Packages` index at feed-publish time, which is
+      # outside this workflow's scope. A future step can be added here if a
+      # custom verification scheme requires per-file .ipk signatures.
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v6

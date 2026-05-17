@@ -13,8 +13,12 @@ on:
         type: string
         default: '*.[ia]pk'
       tag_name:
-        required: true
+        required: false
         type: string
+      draft:
+        required: true
+        type: boolean
+        default: false
     secrets:
       RELEASE_TOKEN:
         required: true
@@ -27,7 +31,7 @@ jobs:
       contents: write
     steps:
       - name: Download Artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           pattern: ${{ inputs.artifact_pattern }}
           path: ${{ github.workspace }}/release-assets/
@@ -35,6 +39,7 @@ jobs:
 
       - name: Create Changelog
         id: changelog
+        if: inputs.tag_name != ''
         uses: requarks/changelog-action@v1
         with:
           token: ${{ secrets.RELEASE_TOKEN }}
@@ -43,10 +48,11 @@ jobs:
           excludeTypes: other,doc,chore,refactor,format,debug,bump
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.tag_name }}
           files: ${{ github.workspace }}/release-assets/${{ inputs.release_file_pattern }}
           generate_release_notes: true
           body: ${{ steps.changelog.outputs.changes }}
           token: ${{ secrets.RELEASE_TOKEN }}
+          draft: ${{ inputs.draft }}
