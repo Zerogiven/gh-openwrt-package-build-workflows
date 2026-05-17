@@ -127,27 +127,43 @@ jobs:
 
       - name: Build with OpenWrt SDK
         uses: openwrt/gh-action-sdk@main
-        if: always() && inputs.target != ''
+        if: always() && inputs.target != '' && !inputs.use_patched_build
         env:
           ARCH: ${{ inputs.arch }}-${{ inputs.openwrt_build_version }}
           PACKAGES: ${{ inputs.sdk_packages }}
           V: ${{ inputs.verbose && 'sc' || '0' }}
           FEED_DIR: ${{ github.workspace }}/feed
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
-          # KEY_BUILD: ${{ secrets.USIGN_SECRET }}
-          # PRIVATE_KEY: ${{ secrets.APK_SIGN_KEY }}
 
       - name: Build with OpenWrt SDK
         uses: openwrt/gh-action-sdk@main
-        if: always() && inputs.target == ''
+        if: always() && inputs.target == '' && !inputs.use_patched_build
         env:
           ARCH: ${{ inputs.arch }}-${{ inputs.openwrt_build_version }}
           PACKAGES: ${{ inputs.sdk_packages }}
           V: ${{ inputs.verbose && 'sc' || '0' }}
           FEED_DIR: ${{ github.workspace }}/feed
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
-          # KEY_BUILD: ${{ secrets.USIGN_SECRET }}
-          # PRIVATE_KEY: ${{ secrets.APK_SIGN_KEY }}
+
+      - name: Build with OpenWrt SDK (patched)
+        uses: Zerogiven/gh-action-sdk@patched
+        if: always() && inputs.target != '' && inputs.use_patched_build
+        env:
+          ARCH: ${{ inputs.arch }}-${{ inputs.openwrt_build_version }}
+          PACKAGES: ${{ inputs.sdk_packages }}
+          V: ${{ inputs.verbose && 'sc' || '0' }}
+          FEED_DIR: ${{ github.workspace }}/feed
+          ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
+
+      - name: Build with OpenWrt SDK (patched)
+        uses: Zerogiven/gh-action-sdk@patched
+        if: always() && inputs.target == '' && inputs.use_patched_build
+        env:
+          ARCH: ${{ inputs.arch }}-${{ inputs.openwrt_build_version }}
+          PACKAGES: ${{ inputs.sdk_packages }}
+          V: ${{ inputs.verbose && 'sc' || '0' }}
+          FEED_DIR: ${{ github.workspace }}/feed
+          ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
 
       - name: Install apk-tools
         run: |
@@ -266,12 +282,6 @@ jobs:
             echo "🔏 Signing: $(basename "$f")"
             apk adbsign --allow-untrusted --sign-key "${PRIV_KEY_PATH}" "$f"
           done
-
-      # NOTE: per-file signing for .ipk is intentionally not implemented.
-      # OpenWrt does not embed signatures in individual .ipk files; trust comes
-      # from a usign-signed `Packages` index at feed-publish time, which is
-      # outside this workflow's scope. A future step can be added here if a
-      # custom verification scheme requires per-file .ipk signatures.
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v6
