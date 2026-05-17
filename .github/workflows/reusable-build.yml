@@ -40,6 +40,10 @@ on:
         required: false
         type: boolean
         default: false
+      use_patched_build:
+        required: false
+        type: boolean
+        default: false
     outputs:
       tag_name:
         value: ${{ jobs.build.outputs.tag_name }}
